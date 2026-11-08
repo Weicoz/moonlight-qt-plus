@@ -14,6 +14,7 @@ extern "C" {
 #include <libavutil/hwcontext_vulkan.h>
 }
 
+#include <array>
 #include <vector>
 #include <set>
 
@@ -1006,12 +1007,12 @@ void PlVkRenderer::renderFrame(AVFrame *frame)
         }
     }
 
-    // Reserve enough space to avoid allocating under the overlay lock
+    // Each slot can retire both the previous and newly staged texture in one frame.
     pl_overlay_part overlayParts[Overlay::OverlayMax] = {};
-    std::vector<pl_tex> texturesToDestroy;
-    std::vector<pl_overlay> overlays;
-    texturesToDestroy.reserve(Overlay::OverlayMax);
-    overlays.reserve(Overlay::OverlayMax);
+    std::array<pl_tex, Overlay::OverlayMax * 2> texturesToDestroy;
+    std::array<pl_overlay, Overlay::OverlayMax> overlays;
+    size_t textureCount = 0;
+    size_t overlayCount = 0;
 
     pl_frame_from_swapchain(&targetFrame, &m_SwapchainFrame);
 
@@ -1021,7 +1022,7 @@ void PlVkRenderer::renderFrame(AVFrame *frame)
         // If we have a staging overlay, we need to transfer ownership to us
         if (m_Overlays[i].hasStagingOverlay) {
             if (m_Overlays[i].hasOverlay) {
-                texturesToDestroy.push_back(m_Overlays[i].overlay.tex);
+                texturesToDestroy[textureCount++] = m_Overlays[i].overlay.tex;
             }
 
             // Copy the overlay fields from the staging area
@@ -1035,7 +1036,7 @@ void PlVkRenderer::renderFrame(AVFrame *frame)
 
         // If we have an overlay but it's been disabled, free the overlay texture
         if (m_Overlays[i].hasOverlay && !Session::get()->getOverlayManager().isOverlayEnabled((Overlay::OverlayType)i)) {
-            texturesToDestroy.push_back(m_Overlays[i].overlay.tex);
+            texturesToDestroy[textureCount++] = m_Overlays[i].overlay.tex;
             SDL_zero(m_Overlays[i].overlay);
             m_Overlays[i].hasOverlay = false;
         }
@@ -1061,7 +1062,7 @@ void PlVkRenderer::renderFrame(AVFrame *frame)
             m_Overlays[i].overlay.parts = &overlayParts[i];
             m_Overlays[i].overlay.num_parts = 1;
 
-            overlays.push_back(m_Overlays[i].overlay);
+            overlays[overlayCount++] = m_Overlays[i].overlay;
         }
     }
     SDL_AtomicUnlock(&m_OverlayLock);
@@ -1128,7 +1129,7 @@ void PlVkRenderer::renderFrame(AVFrame *frame)
     }
 
     // Render the video image and overlays into the swapchain buffer
-    targetFrame.num_overlays = (int)overlays.size();
+    targetFrame.num_overlays = (int)overlayCount;
     targetFrame.overlays = overlays.data();
     if (!pl_render_image(m_Renderer, &mappedFrame, &targetFrame, &renderParams)) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
@@ -1178,8 +1179,8 @@ void PlVkRenderer::renderFrame(AVFrame *frame)
 
 UnmapExit:
     // Delete any textures that need to be destroyed
-    for (pl_tex& texture : texturesToDestroy) {
-        pl_tex_destroy(m_Vulkan->gpu, &texture);
+    for (size_t i = 0; i < textureCount; ++i) {
+        pl_tex_destroy(m_Vulkan->gpu, &texturesToDestroy[i]);
     }
 
     unmapAvFrameFromPlacebo(frame, &mappedFrame);

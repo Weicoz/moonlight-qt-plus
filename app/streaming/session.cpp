@@ -1,5 +1,6 @@
 #include "session.h"
 #include "clipboardhelperclient.h"
+#include "sessioncleanupcompletion.h"
 #include "filemappingclient.h"
 #include "filemappingux.h"
 #include "settings/streamingpreferences.h"
@@ -2309,33 +2310,22 @@ bool Session::validateLaunch(SDL_Window* testWindow)
 class DeferredSessionCleanupTask : public QRunnable
 {
 public:
-    DeferredSessionCleanupTask(Session* session) :
-        m_Session(session) {}
-
-private:
-    virtual ~DeferredSessionCleanupTask() override
+    DeferredSessionCleanupTask(Session* session)
+        : m_Session(session),
+          m_ShouldQuit(!session->m_UnexpectedTermination && session->m_Preferences->quitAppAfter),
+          m_PortTestResults(session->m_PortTestResults)
     {
-        // Allow another session to start now that we're cleaned up
-        Session::s_ActiveSession = nullptr;
-        Session::s_ActiveSessionSemaphore.release();
-
-        // Notify that the session is ready to be cleaned up
-        emit m_Session->readyForDeletion();
+        if (m_ShouldQuit) {
+            QReadLocker locker(&session->m_Computer->lock);
+            m_ComputerSnapshot.emplace(*session->m_Computer);
+        }
     }
 
+private:
     void run() override
     {
-        // Only quit the running app if our session terminated gracefully
-        bool shouldQuit =
-                !m_Session->m_UnexpectedTermination &&
-                m_Session->m_Preferences->quitAppAfter;
-
-        // Notify the UI
-        if (shouldQuit) {
+        if (m_ShouldQuit) {
             emit m_Session->quitStarting();
-        }
-        else {
-            emit m_Session->sessionFinished(m_Session->m_PortTestResults);
         }
 
         // The video decoder must already be destroyed, since it could
@@ -2344,7 +2334,6 @@ private:
         SDL_assert(m_Session->m_VideoDecoder == nullptr);
 
         // Finish cleanup of the connection state
-        QMetaObject::invokeMethod(m_Session, &Session::stopMicrophone, Qt::BlockingQueuedConnection);
         if (m_Session->m_DualSenseHapticsRenderer != nullptr) {
             m_Session->m_DualSenseHapticsRenderer->setControllerTarget(-1);
         }
@@ -2354,8 +2343,8 @@ private:
         m_Session->m_DualSenseHapticsRenderer = nullptr;
 
         // Perform a best-effort app quit
-        if (shouldQuit) {
-            NvHTTP http(m_Session->m_Computer);
+        if (m_ShouldQuit) {
+            NvHTTP http(&*m_ComputerSnapshot);
 
             // Logging is already done inside NvHTTP
             try {
@@ -2363,19 +2352,36 @@ private:
             } catch (const GfeHttpResponseException&) {
             } catch (const QtNetworkReplyException&) {
             }
-
-            // Session is finished now
-            emit m_Session->sessionFinished(m_Session->m_PortTestResults);
         }
 
-        // Exit the entire program if requested
-        if (m_Session->m_ShouldExit) {
-            QCoreApplication::instance()->quit();
-        }
+        SessionCleanup::postCompletion(m_Session,
+                                       [session = m_Session, portTestResults = m_PortTestResults] {
+                                           const bool shouldExit = session->m_ShouldExit;
+                                           Session::s_ActiveSession = nullptr;
+                                           Session::s_ActiveSessionSemaphore.release();
+                                           emit session->sessionFinished(portTestResults);
+                                           emit session->readyForDeletion();
+                                           if (shouldExit) {
+                                               QCoreApplication::quit();
+                                           }
+                                       });
     }
 
     Session* m_Session;
+    bool m_ShouldQuit;
+    int m_PortTestResults;
+    std::optional<NvComputer> m_ComputerSnapshot;
 };
+
+void Session::deferCleanup()
+{
+    Q_ASSERT(QThread::currentThread() == thread());
+    // Keep the session alive if QML is torn down while its cleanup worker is running.
+    SessionCleanup::retainUntilCompletion(this);
+    connect(this, &Session::readyForDeletion, this, &QObject::deleteLater, Qt::UniqueConnection);
+    stopMicrophone();
+    QThreadPool::globalInstance()->start(new DeferredSessionCleanupTask(this));
+}
 
 void Session::getWindowDimensions(int& x, int& y,
                                   int& width, int& height)
@@ -4725,7 +4731,7 @@ void Session::exec()
         delete m_InputHandler;
         m_InputHandler = nullptr;
         SDL_QuitSubSystem(SDL_INIT_VIDEO);
-        QThreadPool::globalInstance()->start(new DeferredSessionCleanupTask(this));
+        deferCleanup();
         // Release the forwarded USB device with the stream, not with the Session.
         teardownUsbTunnel();
         return;
@@ -4873,7 +4879,7 @@ void Session::exec()
         delete m_InputHandler;
         m_InputHandler = nullptr;
         SDL_QuitSubSystem(SDL_INIT_VIDEO);
-        QThreadPool::globalInstance()->start(new DeferredSessionCleanupTask(this));
+        deferCleanup();
         return;
     }
 
@@ -6014,7 +6020,7 @@ DispatchDeferredCleanup:
     // Cleanup can take a while, so dispatch it to a worker thread.
     // When it is complete, it will release our s_ActiveSessionSemaphore
     // reference.
-    QThreadPool::globalInstance()->start(new DeferredSessionCleanupTask(this));
+    deferCleanup();
 }
 
 #ifndef STEAM_LINK

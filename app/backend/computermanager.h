@@ -1,6 +1,7 @@
 #pragma once
 
 #include "nvcomputer.h"
+#include "computerpollingentry.h"
 #include "settings/streamingpreferences.h"
 #include "settings/compatfetcher.h"
 
@@ -132,79 +133,6 @@ private:
     QMdnsEngine::Resolver* m_Resolver;
     QVector<QHostAddress> m_Addresses;
     int m_Retries = 10;
-};
-
-class ComputerPollingEntry
-{
-public:
-    ComputerPollingEntry()
-        : m_ActiveThread(nullptr)
-    {
-
-    }
-
-    virtual ~ComputerPollingEntry()
-    {
-        interrupt();
-
-        // interrupt() should have taken care of this
-        Q_ASSERT(m_ActiveThread == nullptr);
-
-        for (QThread* thread : std::as_const(m_InactiveList)) {
-            thread->wait();
-            delete thread;
-        }
-    }
-
-    bool isActive()
-    {
-        cleanInactiveList();
-
-        return m_ActiveThread != nullptr;
-    }
-
-    void setActiveThread(QThread* thread)
-    {
-        cleanInactiveList();
-
-        Q_ASSERT(!isActive());
-        m_ActiveThread = thread;
-    }
-
-    void interrupt()
-    {
-        cleanInactiveList();
-
-        if (m_ActiveThread != nullptr) {
-            // Interrupt the active thread
-            m_ActiveThread->requestInterruption();
-
-            // Place it on the inactive list awaiting death
-            m_InactiveList.append(m_ActiveThread);
-
-            m_ActiveThread = nullptr;
-        }
-    }
-
-private:
-    void cleanInactiveList()
-    {
-        QMutableListIterator<QThread*> i(m_InactiveList);
-
-        // Reap any threads that have finished
-        while (i.hasNext()) {
-            i.next();
-
-            QThread* thread = i.value();
-            if (thread->isFinished()) {
-                delete thread;
-                i.remove();
-            }
-        }
-    }
-
-    QThread* m_ActiveThread;
-    QList<QThread*> m_InactiveList;
 };
 
 class ComputerManager : public QObject

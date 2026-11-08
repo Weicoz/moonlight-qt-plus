@@ -354,6 +354,7 @@ private:
 
     void startMicrophone();
     void stopMicrophone();
+    void deferCleanup();
 
     void startSunshineAbr();
     void stopSunshineAbr();

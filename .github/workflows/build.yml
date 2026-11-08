@@ -271,6 +271,10 @@ jobs:
         if errorlevel 1 exit /b %ERRORLEVEL%
         call scripts\run-test.bat shared_helpers shared_helpers
         if errorlevel 1 exit /b %ERRORLEVEL%
+        call scripts\run-test.bat computer_polling_entry computer_polling_entry
+        if errorlevel 1 exit /b %ERRORLEVEL%
+        call scripts\run-test.bat session_cleanup_completion session_cleanup_completion
+        if errorlevel 1 exit /b %ERRORLEVEL%
         call scripts\run-test.bat amf_lifecycle amf_lifecycle
         if errorlevel 1 exit /b %ERRORLEVEL%
         call scripts\run-test.bat video_texture_sampling video_texture_sampling
@@ -391,9 +395,16 @@ jobs:
         cache: true
         aqtsource: 'git+https://github.com/miurahr/aqtinstall.git@073e34d7c2ab4ae6961ed7cca690b3abd5ba5a7e'
 
-    - name: Test macOS overlay event wakeups
+    - name: Test macOS polling, network helpers and overlay event wakeups
       run: |
         python3 setup-deps.py
+        for test in computer_polling_entry shared_helpers session_cleanup_completion; do
+          pushd tests/$test
+          qmake "$test.pro"
+          make -j"$(sysctl -n hw.ncpu)"
+          ./$test
+          popd
+        done
         pushd tests/overlay_button_native_wake
         qmake overlay_button_native_wake.pro
         make -j"$(sysctl -n hw.ncpu)"
@@ -577,6 +588,14 @@ jobs:
 
     - name: Test Linux display event wakeups
       run: |
+        for test in computer_polling_entry shared_helpers session_cleanup_completion; do
+          pushd tests/$test
+          qmake "$test.pro"
+          make -j"$(nproc)"
+          ./$test
+          popd
+        done
+
         pushd tests/linux_display_event_monitor
         qmake linux_display_event_monitor.pro
         make -j"$(nproc)"

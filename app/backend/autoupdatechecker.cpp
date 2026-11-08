@@ -15,8 +15,8 @@
 #include <QTimer>
 
 // GitHub repository for update checks
-#define GITHUB_OWNER "qiin2333"
-#define GITHUB_REPO  "moonlight-qt"
+#define GITHUB_OWNER "Weicoz"
+#define GITHUB_REPO "moonlight-qt-plus"
 
 AutoUpdateChecker::AutoUpdateChecker(QObject *parent) :
     QObject(parent)

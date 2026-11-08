@@ -1,5 +1,6 @@
 #include "nvcomputer.h"
 #include "nvapp.h"
+#include "networkinterfaceutils.h"
 #include "settings/compatfetcher.h"
 
 #include <QUdpSocket>
@@ -407,6 +408,13 @@ NvComputer::ReachabilityType NvComputer::getActiveAddressReachability() const
             for (const QNetworkAddressEntry& addr : allInterfaceAddresses) {
                 if (addr.ip() == s.localAddress()) {
                     qInfo() << "Found matching interface:" << nic.humanReadableName() << nic.hardwareAddress() << nic.flags();
+
+#ifdef Q_OS_MACOS
+                    // macOS feth tunnels can report Ethernet and an MTU above the physical link.
+                    if (NetworkInterfaceUtils::isMacVirtualEthernet(nic.name())) {
+                        return cacheResult(ReachabilityType::RI_VPN);
+                    }
+#endif
 
 #if QT_VERSION >= QT_VERSION_CHECK(5, 11, 0)
                     qInfo() << "Interface Type:" << nic.type();

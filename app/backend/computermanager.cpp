@@ -23,8 +23,8 @@ class PcMonitorThread : public QThread
 #define POLLS_PER_APPLIST_FETCH 10
 
 public:
-    PcMonitorThread(NvComputer* computer)
-        : m_Computer(computer)
+    PcMonitorThread(NvComputer* computer, ComputerPollingEntry* pollingEntry)
+        : m_Computer(computer), m_PollingEntry(pollingEntry)
     {
         setObjectName("Polling thread for " + computer->name);
     }
@@ -144,12 +144,7 @@ private:
                 emit computerStateChanged(m_Computer);
             }
 
-            // Wait a bit to poll again, but do it in 100 ms chunks
-            // so we can be interrupted reasonably quickly.
-            // FIXME: QWaitCondition would be better.
-            for (int i = 0; i < 30 && !isInterruptionRequested(); i++) {
-                QThread::msleep(100);
-            }
+            m_PollingEntry->waitForNextPoll();
         }
     }
 
@@ -158,6 +153,7 @@ signals:
 
 private:
     NvComputer* m_Computer;
+    ComputerPollingEntry* m_PollingEntry;
 };
 
 ComputerManager::ComputerManager(StreamingPreferences* prefs)
@@ -411,7 +407,7 @@ void ComputerManager::startPollingComputer(NvComputer* computer)
     }
 
     if (!pollingEntry->isActive()) {
-        PcMonitorThread* thread = new PcMonitorThread(computer);
+        PcMonitorThread* thread = new PcMonitorThread(computer, pollingEntry);
         connect(thread, &PcMonitorThread::computerStateChanged,
                 this, &ComputerManager::handleComputerStateChanged);
         pollingEntry->setActiveThread(thread);
@@ -539,6 +535,7 @@ public:
 
 private:
     NvComputer* m_Computer;
+
     ComputerManager* m_ComputerManager;
 };
 
@@ -635,6 +632,7 @@ private:
 
     ComputerManager* m_ComputerManager;
     NvComputer* m_Computer;
+
     QString m_Pin;
 };
 

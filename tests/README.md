@@ -18,7 +18,9 @@ main() 短、被测逻辑走生产源文件直编(见各 .pro 的 SOURCES)。
 | clipboard_helper_lifecycle | helper 异常退出、响应超时和进程管道背压 | Windows |
 | overlay_button_position | 悬浮按钮归一化/还原坐标的跨分辨率往返 | Windows |
 | file_mapping_websocket_framing | 文件映射 WS 帧解析(fin/分片/ping-pong) | Windows |
-| shared_helpers | 配对证书策略、版本比较与 GFE 兼容性回退 | Windows |
+| shared_helpers | 配对证书策略、版本比较、GFE 兼容性回退与 macOS 虚拟网卡名称识别 | Windows + macOS |
+| computer_polling_entry | 三秒轮询间隔、中断前后唤醒与线程回收 | Windows + macOS |
+| session_cleanup_completion | GUI 停止时后台清理退出、主线程完成回调、QML 回收隔离与释放 | Windows + macOS |
 | amf_lifecycle | AMF 会话探测、初始化/重配/帧处理失败、析构与多会话的对象/DLL 释放顺序 | Windows |
 | file_mapping_transport | 本地 TLS 配对/缓存连接身份/重定向校验，WS Upgrade 与 RPC ID/重入回归 | Windows |
 | file_mapping_mirror_e2e | 主机文件镜像端到端(FakeRemoteVfs + 挂载提供方) | Windows |

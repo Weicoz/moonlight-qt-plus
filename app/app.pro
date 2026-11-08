@@ -310,10 +310,13 @@ HEADERS += \
     backend/computerseeker.h \
     backend/identitymanager.h \
     backend/nvcomputer.h \
+    backend/networkinterfaceutils.h \
     backend/nvhttp.h \
     backend/usbforwardingcapability.h \
     backend/nvpairingmanager.h \
     backend/computermanager.h \
+    backend/computerpollingentry.h \
+    streaming/sessioncleanupcompletion.h \
     backend/boxartmanager.h \
     backend/richpresencemanager.h \
     cli/commandlineparser.h \

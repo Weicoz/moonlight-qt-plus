@@ -1,4 +1,5 @@
 #include "backend/pairedcertificate.h"
+#include "backend/networkinterfaceutils.h"
 #include "settings/compatfetcher.h"
 #include "versionutils.h"
 
@@ -29,6 +30,20 @@ int main(int argc, char* argv[])
     QCoreApplication app(argc, argv);
     QTextStream err(stderr);
     bool ok = true;
+
+    for (const char* name : { "feth0", "feth1196", "feth6196" }) {
+        ok &= require(NetworkInterfaceUtils::isMacVirtualEthernet(QString::fromLatin1(name)),
+                      QStringLiteral("macOS virtual Ethernet must use VPN packet sizing: %1")
+                          .arg(QString::fromLatin1(name)),
+                      err);
+    }
+    for (const char* name :
+         { "", "feth", "en0", "utun4", "bridge0", "fethernet", "feth1x", "FETH1" }) {
+        ok &= require(!NetworkInterfaceUtils::isMacVirtualEthernet(QString::fromLatin1(name)),
+                      QStringLiteral("unrelated interface name must not match feth: %1")
+                          .arg(QString::fromLatin1(name)),
+                      err);
+    }
 
     ok &= require(VersionUtils::parseRelease("v6.2.82+14.g13ca12da.dirty") ==
                       QVersionNumber(6, 2, 82),

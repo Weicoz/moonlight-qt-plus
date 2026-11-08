@@ -9,4 +9,5 @@ TEMPLATE = app
 INCLUDEPATH += $$PWD/../../app
 SOURCES += main.cpp ../../app/settings/compatfetcher.cpp
 HEADERS += ../../app/backend/pairedcertificate.h ../../app/versionutils.h ../../app/settings/compatfetcher.h
+HEADERS += ../../app/backend/networkinterfaceutils.h
 RESOURCES += ../clipboard_payload_routing/fixtures.qrc
