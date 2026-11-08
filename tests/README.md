@@ -21,6 +21,7 @@ main() 短、被测逻辑走生产源文件直编(见各 .pro 的 SOURCES)。
 | shared_helpers | 配对证书策略、版本比较、GFE 兼容性回退与 macOS 虚拟网卡名称识别 | Windows + macOS |
 | computer_polling_entry | 三秒轮询间隔、中断前后唤醒与线程回收 | Windows + macOS |
 | session_cleanup_completion | GUI 停止时后台清理退出、主线程完成回调、QML 回收隔离与释放 | Windows + macOS |
+| mac_microphone_permission | 未决授权不阻塞 GUI、应用线程回调、对象销毁与拒绝路径；不触发真实系统授权 | macOS |
 | amf_lifecycle | AMF 会话探测、初始化/重配/帧处理失败、析构与多会话的对象/DLL 释放顺序 | Windows |
 | file_mapping_transport | 本地 TLS 配对/缓存连接身份/重定向校验，WS Upgrade 与 RPC ID/重入回归 | Windows |
 | file_mapping_mirror_e2e | 主机文件镜像端到端(FakeRemoteVfs + 挂载提供方) | Windows |

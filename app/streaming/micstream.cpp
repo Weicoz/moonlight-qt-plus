@@ -338,7 +338,7 @@ bool MicStream::start()
 
     // Keep the macOS permission request on the application thread. Touching
     // QMediaDevices and creating QAudioSource happens in the worker thread.
-    if (!checkAndRequestMicrophonePermission()) {
+    if (!isMicrophonePermissionGranted()) {
         qWarning() << "[MicStream] Microphone permission denied";
         return false;
     }

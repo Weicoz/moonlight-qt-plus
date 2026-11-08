@@ -1,6 +1,7 @@
 #include "session.h"
 #include "clipboardhelperclient.h"
 #include "sessioncleanupcompletion.h"
+#include "macpermissions.h"
 #include "filemappingclient.h"
 #include "filemappingux.h"
 #include "settings/streamingpreferences.h"
@@ -5875,6 +5876,14 @@ void Session::exec()
         }
 #endif
 
+        if (m_PendingMicStart) {
+            m_PendingMicStart = false;
+            startMicrophone();
+            if (m_MenuPanel) {
+                m_MenuPanel->updateMicrophoneState(m_MicStream != nullptr);
+            }
+        }
+
         // Deferred microphone toggle — runs outside processEvents() to avoid
         // heap corruption when creating QAudioSource within nested event loops
         if (m_PendingMicToggle) {
@@ -6026,6 +6035,26 @@ DispatchDeferredCleanup:
 #ifndef STEAM_LINK
 void Session::startMicrophone()
 {
+    if (m_MicStream || m_MicPermissionPending) {
+        return;
+    }
+#ifdef Q_OS_DARWIN
+    if (!isMicrophonePermissionGranted()) {
+        m_MicPermissionPending = true;
+        requestMicrophonePermission(this, [this](bool granted) {
+            if (!m_MicPermissionPending) {
+                return;
+            }
+            m_MicPermissionPending = false;
+            if (granted) {
+                m_PendingMicStart = true;
+            } else {
+                SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "Microphone permission denied");
+            }
+        });
+        return;
+    }
+#endif
     if (!m_MicStream) {
         m_MicStream = new MicStream(this);
         if (!m_MicStream->start()) {
@@ -6037,6 +6066,8 @@ void Session::startMicrophone()
 
 void Session::stopMicrophone()
 {
+    m_MicPermissionPending = false;
+    m_PendingMicStart = false;
     if (m_MicStream) {
         m_MicStream->stop();
         delete m_MicStream;

@@ -100,7 +100,6 @@ static QString getStartupApplicationDir(const char* argv0)
 #include "gui/windowswindowchrome.h"
 #include "imageutils.h"
 #include "uifont.h"
-#include "streaming/macpermissions.h"
 #ifdef Q_OS_DARWIN
 #include "gui/macwindowchrome.h"
 #endif
@@ -1324,15 +1323,7 @@ int main(int argc, char *argv[])
     }
 #endif
 
-#ifdef Q_OS_DARWIN
-    // Pre-request microphone permission at startup via AVCaptureDevice so that
-    // only a single TCC dialog is shown. Universal (fat) binaries have distinct
-    // CDHashes per architecture slice, and each QMediaDevices / CoreAudio call
-    // can trigger a separate prompt. By requesting permission once through
-    // AVCaptureDevice before any CoreAudio usage, macOS caches the grant for
-    // the whole app.
-    checkAndRequestMicrophonePermission();
-#else
+#ifndef Q_OS_DARWIN
     // Set the window icon except on macOS where we want to keep the
     // modified macOS 11 style rounded corner icon.
     app.setWindowIcon(QIcon(":/res/moonlight.svg"));

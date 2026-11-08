@@ -1,0 +1,10 @@
+QT += core
+QT -= gui
+CONFIG += c++17 console
+CONFIG -= app_bundle
+TEMPLATE = app
+TARGET = mac_microphone_permission
+INCLUDEPATH += ../../app
+SOURCES += main.mm ../../app/streaming/macpermissions.mm
+HEADERS += ../../app/streaming/macpermissions.h
+LIBS += -framework AVFoundation -framework Foundation -framework CoreFoundation

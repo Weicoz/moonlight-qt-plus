@@ -405,6 +405,11 @@ jobs:
           ./$test
           popd
         done
+        pushd tests/mac_microphone_permission
+        qmake mac_microphone_permission.pro
+        make -j"$(sysctl -n hw.ncpu)"
+        ./mac_microphone_permission
+        popd
         pushd tests/overlay_button_native_wake
         qmake overlay_button_native_wake.pro
         make -j"$(sysctl -n hw.ncpu)"

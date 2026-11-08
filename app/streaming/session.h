@@ -430,6 +430,8 @@ private:
     bool m_WasCapturedBeforeMenu;  // 菜单打开前鼠标是否处于捕获状态
     bool m_DeferCaptureRestore;    // 延迟恢复鼠标捕获（全屏切换等）
     bool m_PendingMicToggle;       // 延迟麦克风切换（避免堆损坏）
+    bool m_MicPermissionPending = false;
+    bool m_PendingMicStart = false;
 #ifdef MOONLIGHT_ENABLE_FUNCTION_TESTS
     // Developer-only test harness. All replay/UI behavior lives behind this
     // boundary so production Session code keeps only integration hooks.
